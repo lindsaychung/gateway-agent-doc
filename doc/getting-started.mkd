@@ -34,7 +34,10 @@ go build
 ## Setup
 
 ### Gateway configuration.
-Edit config.yml included in the release archive.
+Edit config.yml included in the release
+[archive.](https://bintray.com/kii/kii-gateway-agent/gateway-agent#files)
+And copy it to the same directory which gwagent binary is located in your
+running environemnt.
 
 `gateway` section:
 

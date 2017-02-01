@@ -8,8 +8,19 @@ https://github.com/KiiPlatform/gwc-cli
 - Gateway Manager Application Sample:
 https://github.com/KiiPlatform/gwm-cli
 
-## Installation
-Please refer to [README] (../README.md) for Gateway Agent installation.
+## Download
+Please refer to [README] (../README.md) for Gateway Agent download.
+
+## Locate files
+
+```shell
+# You can use arbitrary directory name.
+mkdir ~/gateway-dir
+# Copy binary from the downloaded archive.
+cp ~/downloads/artifacts-1.5.2/mac/gwagent-amd64 ~/gateway-dir
+# Copy config.yml from the downloaded archive.
+cp ~/downloads/artifacts-1.5.2/config.yml ~/gateway-dir
+```
 
 ### gwc-cli installation
 ```shell
@@ -34,10 +45,7 @@ go build
 ## Setup
 
 ### Gateway configuration.
-Edit config.yml included in the release
-[archive.](https://bintray.com/kii/kii-gateway-agent/gateway-agent#files)
-And copy it to the same directory which gwagent binary is located in your
-running environemnt.
+Edit copied config.yml
 
 `gateway` section:
 
@@ -135,8 +143,8 @@ Now, all configuration should have been done!
 ## Startup Gateway Agent
 
 ```shell
-cd {PATH TO YOUR ENVIRONMENT}
-./gwagent
+cd ~/gateway-dir
+./gwagent-amd64
 ```
 
 ## Setup Gateway using gwm-cli

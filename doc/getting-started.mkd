@@ -1,0 +1,285 @@
+# Getting Started With Kii Gateway
+
+This tutrial irrustrtes how Kii Gateway works with the Converter program and Gateway manager Application.
+
+- Gateway Converter Sample:
+https://github.com/KiiPlatform/gwc-cli
+
+- Gateway Manager Application Sample:
+https://github.com/KiiPlatform/gwm-cli
+
+## Installation
+Please refer to [README] (../README.md) for Gateway Agent installation.
+
+### gwc-cli installation
+```shell
+cd $GOPATH
+cd src/github.com/KiiPlatform
+git clone git@github.com:KiiPlatform/gwc-cli.git
+cd gwc-cli.git
+go get -t -d -v ./..
+go build
+```
+
+### gwm-cli installation
+```shell
+cd $GOPATH
+cd src/github.com/KiiPlatform
+git clone git@github.com:KiiPlatform/gwm-cli.git
+cd gwm-cli
+go get -t -d -v ./..
+go build
+```
+
+## Setup
+
+### Gateway configuration.
+```
+cd $GOPATH/src/github.com/KiiPlatform/gateway-agent
+cp doc/config.yml .
+```
+
+Edit copied config.yml
+
+`gateway` section:
+
+We don't change this section in this tutorial.
+
+Information in this section is stored in Kii Cloud and used to identify/ manage the
+Gateway device.
+
+`admin` section:
+
+We don't change this section in this tutorial.
+
+This section defines credentials to access the Gateway Agent local REST API.
+
+`master_app` section:
+
+Please replace the site, app\_id and app\_key with your application in Kii Cloud.
+If you haven't created application in Kii Cloud, Please visit [Web Console](https://developer.kii.com)
+and Create your application.
+Value of site would be 'jp', 'us', 'cn3', 'sg', or 'eu' depending on the server location you've chosen when you create the application.
+
+`sites` section:
+
+We don't change this section in this tutorial.
+
+This section is used for by developers who subscribed to Enterprise Plan.
+It is used to define the private/ dedicated site location.
+
+`store` section:
+
+We don't change this section in this tutorial.
+
+`local_server` section:
+
+We don't change this section in this tutorial.
+
+This section is used to configure address of local REST API endpoint.
+
+`mqtt` section:
+
+We don't change this section in this tutorial.
+
+This section is used to configure address of MQTT endpoint.
+
+### gwc-cli configuration.
+
+```
+cd $GOPATH/src/github.com/KiiPlatform/gwc-cli
+cp examples/config.yml .
+```
+
+Edit config.yml
+
+`apps` section:
+
+The dictionary of the apps.
+You can put arbitrary name as key but in this tutorial we unify the key name as
+'master'. Lets set same application which is configured in gateway-agent/config.yml
+
+`gateway-address` section:
+
+We don't change this section in this tutorial.
+
+Should match with gateway-agent/config.yml mqtt section.
+
+`keep-alive` section:
+
+Defines keep-alive timer of MQTT connection.
+
+The sample doesn't send ping message so let's set long value. (ex. 600)
+
+In real application, you can set more realistic value to detect disconnection.
+(ex. 30, 60 second etc.)
+
+### gwm-cli configuration.
+```
+cd $GOPATH/src/github.com/KiiPlatform/gwm-cli
+cp examples/config.yml .
+```
+
+Edit config.yml
+
+`apps` section:
+
+Same as gwc-cli/config.yml. Please confgure your app as 'master' application.
+
+`gateway-address` section:
+
+We don't change this section in this tutorial.
+
+Should match with gateway-agent/config.yml local\_server section.
+
+Now, all configuration should have been done!
+
+## Startup Gateway Agent
+
+```shell
+cd $GOPATH/src/github.com/KiiPlatform/gateway-agent
+./gwagent
+```
+
+## Setup Gateway using gwm-cli
+
+```shell
+cd $GOPATH/src/github.com/KiiPlatform/gwm-cli
+```
+
+### Local authentication
+Note: do not expose security credentials in your real service.
+
+```shell
+./gwm-cli auth --username admin_user --password admin_pass --app-name master
+```
+
+### Gateway onboarding
+By this operation, Gateway information is sent to Kii Cloud and can be managed
+thorugh the cloud.
+
+```shell
+./gwm-cli onboard-gateway --app-name master
+```
+
+### User login
+Kii Gateway will be managed by the User in Kii Cloud called owner.
+Only the owner can manage the Gateway,
+so that it will be protected from malicious act.
+Execute user sign-up/ login before owner registration.
+
+
+Replace {username}/ {password} section.
+
+If you haven't created User in Kii Cloud, it will create new user.
+```shell
+./gwm-cli user-login --username {username} --password {password} --app-name master
+```
+
+### Owner registration
+
+Replace {gateway password} with the same string configured in thingPassword in gateway-agent/config.yml
+
+```shell
+./gwm-cli add-owner --gateway-password {gateway password} --app-name master
+```
+
+### End Node onboarding
+
+#### Connect Converter using gwc-cli
+
+```shell
+cd $GOPATH/src/github.com/KiiPlatform/gwc-cli
+./gwc-cli -evid node1 -aname master
+```
+
+evid is vendorThingID of the device connected to the Gateway.
+The ID is sent to Kii Cloud and used to identify the device in Kii Cloud.
+
+By this command, Converte program establish the MQTT connection between the Gateway
+And send ID of the device.
+After the connection, state of 'node1' is marked as pending in the Gateway.
+At this time, the device 'node1' haven't been managed in Kii Cloud.
+
+#### Onboard connected device with gwm-cli
+Let's go back to gwm-cli termial
+
+```shell
+./gwm-cli list-pending-nodes --app-name master
+```
+
+You'll see output like this:
+
+```
+2016/03/18 16:46:46 pending nodes: 
+[map[vendorThingID:node1]]
+```
+
+This means device called 'node1' is waiting to be onboarded to the Kii Cloud.
+Let's get thing done.
+
+You can put passowrd of the node1 in --node-password option.
+
+(Arbitrary value can be set, but don't forget it.)
+
+This is also a protection for malicious act.
+
+```shell
+./gwm-cli onboard-node --node-vid node1 --node-password {node password} --app-name master
+```
+
+Now, both Gateway and connected Device are managed in cloud and ready to further operations!
+
+## Send Command To the Device
+On gwm-cli terminal
+
+```shell
+cp exampoes/command.json .
+```
+
+Open copied command.json with Text Editor.
+
+`issuer` : used to identify who has published the Command.
+The ID will be automatically repalced with the ID of the user currently login to the gwm-cli
+
+`schema` / `schemaVersion` In this tutorial, no need to care those fields.
+
+It will be used to define the structure of actions, state of devices, etc.
+
+`actions` : Defines what kind of action is requested to the device.
+
+In this tutorial, we use this command as it is.
+(Since gwc-cli won't handles those actions and just print the recieved commands in the console)
+
+```shell
+./gwm-cli post-command --node-vid node1 --command-file command.json --app-name master
+```
+
+Check output in gwm-cli terminal.
+
+You'll see the output like this.
+```
+received command: 
+{"commandID":"22c910e0-ece0-11e5-89ca-22000ad9164c","issuer":"user:d009f7a00022-e4ab-5e11-e44e-0b0dcf9e","actions":[{"turnPower":{"power":true}}],"schema":"SmartLightDemo","schemaVersion":1}
+```
+
+Also the gwc-cli stores command in ./commands directory.
+
+If you don't see output or files in the directory,
+Likely the gwc-cli is disconnected.
+Try shutdown the program and restart it.
+
+```
+./gwc-cli -evid node1 -aname master
+```
+
+## Retrun Command Result from the device.
+On gwc-cli terminal
+
+```shell
+cp examples/commandResult.json .
+```
+
+Edit copied commandResult.json and replace the commandID with the recieved command ID.
+
+Up gwc-cli and choose 2.

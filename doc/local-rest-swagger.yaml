@@ -1,0 +1,524 @@
+swagger: '2.0'
+info:
+  title: Gateway Agent local API
+  description: Manage Gateway and its end nodes.
+  version: 0.7.0
+host: gateway-agent
+schemes:
+  - https
+  - http
+produces:
+  - application/json
+paths:
+  '/{server-location}/token':
+    post:
+      summary: Obtain token to access the Gateway
+      description: |
+        Gateway will provide local authentication. This login endpoint
+        receives the Basic auth and gateway password, and will generate
+        a token bounded to both values.
+
+        A random string is generated and gateway stores the basic auth
+        header and gateway password locally.
+
+        Flow is as follows:
+
+        1. App authenticates with login endpoint, gateway generates a token
+        2. App uses token as Bearer on the subsequent calls
+        3. On each call, gateway is able to validate and use password and
+           Basic auth. If either one fails, endpoint will return error
+      parameters:
+        - name: server-location
+          in: path
+          description: location of the server.
+          required: true
+          type: string
+        - name: authorization
+          in: header
+          description: basic authorization header.
+          required: true
+          type: string
+        - name: user-info
+          in: body
+          description: User information of the Gateway.
+          schema:
+            $ref: '#/definitions/UserInfo'
+          required: true
+      responses:
+        '200':
+          description: Access token
+          schema:
+            $ref: '#/definitions/AccessToken'
+        '400':
+          description: |
+            `INVALID_INPUT_DATA` Missing required header
+          schema:
+            $ref: '#/definitions/Error'
+        '401':
+          description: >
+            `INVALID_GRANT` Failed to authenticate with the specified
+            credentials.
+          schema:
+            $ref: '#/definitions/Error'
+  '/gateway-info':
+    get:
+      summary: Obtain gateway hardware information.
+      description: |
+        Retrive gateway information.  Currently only vendorThingID is included.
+      parameters:
+        - name: authorization
+          in: header
+          description: bearer {token published by the gateway}
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Gateway hardware information.
+          schema:
+            $ref: '#/definitions/GatewayInfo'
+        '401':
+          description: >
+            `INVALID_GRANT` Failed to authenticate with the specified
+            credentials.
+          schema:
+            $ref: '#/definitions/Error'
+  '/gateway-app/gateway/onboarding':
+    post:
+      summary: Gateway onboarding for the Gateway App.
+      description: |
+        Let Gateway to onboard with the Gateway app.
+
+        Thing instance for the Gateway App is created or just retrieve token
+        and thingID if it's already registered.
+      parameters:
+        - name: authorization
+          in: header
+          description: bearer {token published by the gateway}
+          required: true
+          type: string
+      responses:
+        '200':
+          description: |
+            thingID of the Gateway. Gateway Mobile App or End Node Mobile App
+            will use it for onboarding with the owner of the Gateway.
+          schema:
+            $ref: '#/definitions/ThingID'
+        '400':
+          description: |
+            `INVALID_INPUT_DATA` Missing required header
+          schema:
+            $ref: '#/definitions/Error'
+        '401':
+          description: >
+            `INVALID_GRANT` Failed to authenticate with the specified
+            credentials.
+          schema:
+            $ref: '#/definitions/Error'
+        '409':
+          description: >
+            `INVALID_STATE` When the Gateway state is ONBOARDING or DONE_ONBOARD
+          schema:
+            $ref: '#/definitions/Error'
+        '503':
+          description: >
+            `RESTORING_GATEWAY` When the Gateway State is WAITING_RESTORE or
+            RESTORING
+          schema:
+            $ref: '#/definitions/Error'
+  '/{server-location}/apps/{appID}/gateway/onboarding/':
+    post:
+      summary: Gateway onboarding for the End Node App
+      description: |
+        Let Gateway to onboard with the specified End Node app.
+
+        Thing instance for the Gateway is created for the app or just retrieve
+        thingID if it's already registered.
+      parameters:
+        - name: server-location
+          in: path
+          description: location of the server.
+          required: true
+          type: string
+        - name: appID
+          in: path
+          description: ID of the application
+          required: true
+          type: string
+        - name: authorization
+          in: header
+          description: bearer {token published by the gateway}
+          required: true
+          type: string
+      responses:
+        '200':
+          description: >
+            thingID of the Gateway.
+
+            Gateway Mobile App or End Node Mobile App will use it for onboarding
+
+            with the owner of the Gateway.
+          schema:
+            $ref: '#/definitions/ThingID'
+        '400':
+          description: |
+            `INVALID_INPUT_DATA` Missing required header
+          schema:
+            $ref: '#/definitions/Error'
+        '401':
+          description: >
+            `INVALID_GRANT` Failed to authenticate with the specified
+            credentials.
+          schema:
+            $ref: '#/definitions/Error'
+        '409':
+          description: >
+            `INVALID_STATE` When the Gateway state is ONBOARDING or DONE_ONBOARD
+          schema:
+            $ref: '#/definitions/Error'
+        '503':
+          description: >
+            `RESTORING_GATEWAY` When the Gateway State is WAITING_RESTORE or
+            RESTORING
+          schema:
+            $ref: '#/definitions/Error'
+  '/{server-location}/apps/{appID}/gateway/id':
+    get:
+      summary: Get Gateway ID for the app
+      description: |
+        Get the Gateway ID for the App.
+      parameters:
+        - name: server-location
+          in: path
+          description: location of the server.
+          required: true
+          type: string
+        - name: appID
+          in: path
+          description: ID of the application
+          required: true
+          type: string
+        - name: authorization
+          in: header
+          description: bearer {token published by the gateway}
+          required: true
+          type: string
+      responses:
+        '200':
+          description: >
+            thingID of the Gateway.
+
+            “my gateway” will use it for onboarding with the owner of the
+            Gateway.
+          schema:
+            $ref: '#/definitions/ThingID'
+        '400':
+          description: |
+            `INVALID_INPUT_DATA` Missing required header
+          schema:
+            $ref: '#/definitions/Error'
+        '401':
+          description: >
+            `INVALID_GRANT` Failed to authenticate with the specified
+            credentials.
+          schema:
+            $ref: '#/definitions/Error'
+        '404':
+          description: |
+            `GATEWAY_NOT_FOUND`
+            Gateway onboarding for the app has not been completed.
+          schema:
+            $ref: '#/definitions/Error'
+        '409':
+          description: |
+            `GATEWAY_APP_GATEWAY_NOT_READY`
+            When the Gateway app Gateway state is not DONE_ONBOARDED.
+          schema:
+            $ref: '#/definitions/Error'
+        '503':
+          description: >
+            `RESTORING_GATEWAY` When the Gateway State is WAITING_RESTORE or
+            RESTORING
+          schema:
+            $ref: '#/definitions/Error'
+  '/{server-location}/apps/{appID}/gateway/end-nodes/pending':
+    get:
+      summary: List Connected End Nodes which has not been onboarded
+      description: >
+        List the Connected End Nodes which hasn't been onboarded to thing-if.
+
+        Gateway Agent has a fixed length Queue which manages list of the End
+        Nodes
+
+        which has not been onboarded. the limit is 5.
+      parameters:
+        - name: server-location
+          in: path
+          description: location of the server.
+          required: true
+          type: string
+        - name: appID
+          in: path
+          description: ID of the application
+          required: true
+          type: string
+        - name: authorization
+          in: header
+          description: bearer {token published by the gateway}
+          required: true
+          type: string
+      responses:
+        '200':
+          description: |
+            If there's no end-nodes which haven't onboarded yet,
+            empty array (i.e. []) is returned.
+          schema:
+            $ref: '#/definitions/EndNodes'
+        '400':
+          description: |
+            `INVALID_INPUT_DATA`
+            Missing required header
+          schema:
+            $ref: '#/definitions/Error'
+        '401':
+          description: |
+            `INVALID_GRANT`
+            Failed to authenticate with the specified credentials.
+          schema:
+            $ref: '#/definitions/Error'
+        '404':
+          description: |
+            `GATEWAY_NOT_FOUND`
+            Gateway onboarding for the app has not been completed.
+          schema:
+            $ref: '#/definitions/Error'
+        '409':
+          description: |
+            `GATEWAY_APP_GATEWAY_NOT_READY`
+            When the Gateway app Gateway state is not DONE_ONBOARDED.
+          schema:
+            $ref: '#/definitions/Error'
+        '503':
+          description: >
+            `RESTORING_GATEWAY` When the Gateway State is WAITING_RESTORE or
+            RESTORING
+          schema:
+            $ref: '#/definitions/Error'
+  '/{server-location}/apps/{appID}/gateway/end-nodes/VENDOR_THING_ID:{vendorThingID}':
+    put:
+      summary: Notify End Node onboarding completion to the Gateway.
+      description: >
+        End Nodes Mobile App execute the onboarding for the End Node.
+
+        When onboarding is succeeded, feed Gateway with the thing ID of the End
+        Node.
+      parameters:
+        - name: server-location
+          in: path
+          description: location of the server.
+          required: true
+          type: string
+        - name: appID
+          in: path
+          description: ID of the application
+          required: true
+          type: string
+        - name: vendorThingID
+          in: path
+          description: ID of the End Node of which onboard has been done.
+          required: true
+          type: string
+        - name: authorization
+          in: header
+          description: bearer {token published by the gateway}
+          required: true
+          type: string
+        - name: ThingID
+          in: body
+          description: ID of the End Node obtained by End Node Mobile App onboarding.
+          required: true
+          schema:
+            $ref: '#/definitions/ThingID'
+      responses:
+        '204':
+          description: Success
+        '400':
+          description: |
+            `INVALID_INPUT_DATA`
+            Missing required header
+          schema:
+            $ref: '#/definitions/Error'
+        '401':
+          description: |
+            `INVALID_GRANT`
+            Failed to authenticate with the specified credentials.
+          schema:
+            $ref: '#/definitions/Error'
+        '404':
+          description: |
+            `GATEWAY_NOT_FOUND`
+            Gateway onboarding for the app has not been completed.
+          schema:
+            $ref: '#/definitions/Error'
+        '409':
+          description: |
+            `GATEWAY_APP_GATEWAY_NOT_READY`
+            When the Gateway app Gateway state is not DONE_ONBOARDED.
+          schema:
+            $ref: '#/definitions/Error'
+        '503':
+          description: >
+            `RESTORING_GATEWAY` When the Gateway State is WAITING_RESTORE or
+            RESTORING
+          schema:
+            $ref: '#/definitions/Error'
+  '/gateway-app/gateway/restore':
+    post:
+      summary: Restore Gateway app
+      description: >
+        When the gateway is replaced with new one, Gateway Mobile App will do
+
+        the necessary procedure for replacement. After its ready for
+        replacement,
+
+        Gateway Mobile App will notify that it's ready for restore.
+      parameters:
+        - name: authorization
+          in: header
+          description: bearer {token published by the gateway}
+          required: true
+          type: string
+      responses:
+        '204':
+          description: |
+            Gateway Agent returns response when the restore has been started.
+            It does not wait for actual completion of restore.
+        '400':
+          description: |
+            `INVALID_INPUT_DATA`
+            Missing required header
+          schema:
+            $ref: '#/definitions/Error'
+        '401':
+          description: |
+            `INVALID_GRANT`
+            Failed to authenticate with the specified credentials.
+
+            `FAILED_TO_AUTHENTICATE_GATEWAY`
+            Gateway Mobile App configured wrong password.
+            Gateway Mobile App should re-configure the password.
+          schema:
+            $ref: '#/definitions/Error'
+        '409':
+          description: |
+            `GATEWAY_APP_GATEWAY_NOT_READY`
+            When the Gateway app Gateway state is not DONE_ONBOARDED.
+          schema:
+            $ref: '#/definitions/Error'
+  '/{server-location}/apps/{appID}/gateway/restore':
+    post:
+      summary: Restore End Node App
+      description: >
+        When the gateway is replaced with new one, End Node Mobile App will
+
+        do the necessary procedure for replacement. After its ready for
+        replacement,
+
+        End Node Mobile App will notify that it's ready for restore.
+      parameters:
+        - name: server-location
+          in: path
+          description: location of the server.
+          required: true
+          type: string
+        - name: appID
+          in: path
+          description: ID of the application
+          required: true
+          type: string
+        - name: authorization
+          in: header
+          description: bearer {token published by the gateway}
+          required: true
+          type: string
+      responses:
+        '204':
+          description: |
+            Gateway Agent returns response when the restore has been started.
+            It does not wait for actual completion of restore.
+        '400':
+          description: |
+            `INVALID_INPUT_DATA`
+            Missing required header
+          schema:
+            $ref: '#/definitions/Error'
+        '401':
+          description: |
+            `INVALID_GRANT`
+            Failed to authenticate with the specified credentials.
+
+            `FAILED_TO_AUTHENTICATE_GATEWAY`
+            Gateway Mobile App configured wrong password.
+            Gateway Mobile App should re-configure the password.
+          schema:
+            $ref: '#/definitions/Error'
+        '409':
+          description: |
+            `GATEWAY_APP_GATEWAY_NOT_READY`
+            When the Gateway app Gateway state is not DONE_ONBOARDED.
+          schema:
+            $ref: '#/definitions/Error'
+definitions:
+  AccessToken:
+    type: object
+    properties:
+      accessToken:
+        type: string
+    required:
+      - accessToken
+  EndNode:
+    type: object
+    properties:
+      vendorThingID:
+        type: string
+      thingProperties:
+        type: object
+    required:
+      - vendorThingID
+  EndNodes:
+    type: array
+    items:
+      $ref: '#/definitions/EndNode'
+  Error:
+    type: object
+    properties:
+      errorCode:
+        type: string
+      message:
+        type: string
+    required:
+      - errorCode
+      - message
+  ThingID:
+    type: object
+    properties:
+      thingID:
+        type: string
+    required:
+      - thingID
+  UserInfo:
+    type: object
+    properties:
+      username:
+        type: string
+      password:
+        type: string
+    required:
+      - username
+      - password
+  GatewayInfo:
+    type: object
+    properties:
+      vendorThingID:
+        type: string
+    required:
+      - vendorThingID

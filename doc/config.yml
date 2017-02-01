@@ -1,0 +1,102 @@
+# Gateway vendor and Thing (as physical device) specific information.
+gateway:
+  vendorThingID: 1234-5678-90ab-cdef
+  thingPassword: 7rTr5F
+  thingType: GATEWAY
+  thingProperties:
+    _vendor: Kii
+    _lot: S2001512081200G0012340001
+    _firmware_version: 1.0.0
+
+# Administrator information for this gateway,
+# necessary when request to authorize mobile app.
+admin:
+  username: admin_user
+  password: admin_pass
+
+# Master app information for this gateway. This app will
+# store all onboarded end node app info in thing bucket,
+# naming by endnode_apps_backup_bucket of gateway thing
+master_app:
+  site: jp
+  app_id: dummy_app_id
+  app_key: dummy_app_key
+
+  # Thing scope bucket to save all the onboarded Endnode App info on Master
+  # app.  The bucket blongs to gateway thing of Master app.
+  endnode_apps_backup_bucket: endnodeApps
+
+# configure Kii Cloud's sites (optional).
+# only required for private/ dedicated sites
+# with enterprize subscription.
+# us, jp, cn3, sg and eu are defined implicitly.
+sites:
+  foo: http://foo.example.com
+  bar: http://bar.example.com
+
+# configure Store (optional)
+store:
+  # type of Store: should be "boltdb" or "memory" (default: "boltdb")
+  type: boltdb
+  params:
+    # "boltdb" requires these params.
+    filename: 'gwagent.db'
+    # "memory" requires these params.
+    capacity: 100
+
+# Local server settings (optional). Locale server respond requests of REST APIs from
+# mobile app.
+local_server:
+  addr:
+
+    # If 0.0.0.0 is configured, local server is accessable from all interface.
+    # If a specified IP address is configured, locale server only accessable
+    # from that IP address
+    host: 0.0.0.0
+
+    port: 4001
+
+  # To enable SSH, `cert_file` and `key_file` should be given.
+  cert_file: 'cert.pem'
+  key_file:  'key.pem'
+
+# MQTT settings
+mqtt:
+  keep_alive: 300
+  local_broker:
+    host: 127.0.0.1
+    port: 1883
+  # to enable MQTTS server, make below two parameters enable.
+  #local_x509_cert: "/path/to/tls_cert"
+  #local_x509_key: "/path/to/tls_key"
+
+# Advertising settings (optional)
+# SSDP advertiser advertises ssdp:alive message
+# or respond M-SEARCH request with address of REST APIs to/from mobile app. If SSDP is
+# enabled, advertiser will fill `Location`　header of ssdp:alive message or M-SEARCH
+# response with ip address of the specified interface(advertiser.interface) and
+# port number of localeServer(local_server.addr.port)
+advertiser:
+
+  # Network interface name to advertisement. Optional, if it is omitted, SSDP
+  # is disabled.
+  # If local_server.addr.host is configured with a specified ip address. interface
+  # must match that ip address.
+  # If local_server.addr.host is configured with 0.0.0.0, interface can be configured
+  # with any available interface, which can be accessed by mobile app.
+  interface: "en0"
+
+  # Service type used for "ST" property.  Optional.
+  service_type: "urn:kii:service:iot-gateway:1"
+
+  # Unique service name for "USN" property. Optional, default is generated from
+  # gateway.vendorThingID and service_type.
+  usn: "uuid:fcef84c8-db8a-4f63-bd9a-60f8891e127f::urn:kii:service:iot-gateway:1"
+
+  # maxAge for "maxAge" for "CACHE-CONTROL" property. Optional, default is 1800
+  # (sec).
+  max_age: 3600
+
+  # interval (seconds) of sending ssdp:alive message. optional, default is same
+  # with max_age.
+  alive_interval: 120

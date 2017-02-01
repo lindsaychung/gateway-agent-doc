@@ -1,0 +1,1027 @@
+#%RAML 0.8
+title: Gateway Agent local API
+version: 0.10.0
+documentation:
+  - title: Description
+    content: Manage Gateway and its end nodes.
+protocols:
+  - HTTPS
+  - HTTP
+baseUri: https://gateway-agent
+mediaType:  application/json
+schemas:
+  - AccessToken: |
+      {
+        "type": "object",
+        "$schema": "http://json-schema.org/draft-03/schema",
+        "required": true,
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "accessToken of Gateway/Endnode application can be used to access gateway.",
+            "required": true
+          }
+        }
+      }
+    EndNode: |
+      {
+        "type": "object",
+        "$schema": "http://json-schema.org/draft-03/schema",
+        "properties": {
+          "vendorThingID": {
+            "type": "string",
+            "required": true
+          },
+          "thingProperties": {
+            "type": "object",
+            "required": false
+          }
+        }
+      }
+    EndNodes: |
+      {
+        "type": "array",
+        "$schema": "http://json-schema.org/draft-03/schema",
+        "items": {
+          "$ref": "EndNode"
+        }
+      }
+    Error: |
+      {
+        "type": "object",
+        "$schema": "http://json-schema.org/draft-03/schema",
+        "required": true,
+        "properties": {
+          "errorCode": {
+            "type": "string",
+            "required": true
+          },
+          "message": {
+            "type": "string",
+            "required": true
+          }
+        }
+      }
+    ThingID: |
+      {
+        "type": "object",
+        "$schema": "http://json-schema.org/draft-03/schema",
+        "required": true,
+        "properties": {
+          "thingID": {
+            "type": "string",
+            "description": "thingID of the Gateway. Gateway Mobile App or End Node Mobile App will use it for onboarding with the owner of the Gateway.",
+            "required": true
+          }
+        }
+      }
+    RequestThingID: |
+      {
+        "type": "object",
+        "$schema": "http://json-schema.org/draft-03/schema",
+        "required": true,
+        "properties": {
+          "thingID": {
+            "type": "string",
+            "description": "ID of the End Node obtained by End Node Mobile App onboarding.",
+            "required": true
+          }
+        }
+      }
+    VendorThingID: |
+      {
+        "type": "object",
+        "$schema": "http://json-schema.org/draft-03/schema",
+        "required": true,
+        "properties": {
+          "vendorThingID": {
+            "type": "string",
+            "description": "new vendorThingID",
+            "required": true
+          }
+        }
+      }
+    UserInfo: |
+      {
+        "type": "object",
+        "$schema": "http://json-schema.org/draft-03/schema",
+        "required": true,
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "Username of the Gateway. Fixed.",
+            "pattern": "^user$",
+            "required" : true
+          },
+          "password": {
+            "type": "string",
+            "description": "Password of the Gateway",
+            "required" : true
+          }
+        }
+      }
+    GatewayInfo: |
+      {
+        "type": "object",
+        "$schema": "http://json-schema.org/draft-03/schema",
+        "required": true,
+        "properties": {
+          "vendorThingID": {
+            "type": "string",
+            "required": true
+          }
+        }
+      }
+    OnboardingResponse: |
+      {
+        "type": "object",
+        "$schema": "http://json-schema.org/draft-03/schema",
+        "properties":{
+          "thingID": {
+            "type":"string",
+            "required": true
+          },
+          "vendorThingID": {
+            "type": "string",
+            "required": true
+          }
+        }
+      }
+/{serverLocation}/token:
+  uriParameters:
+    serverLocation:
+      description: location of the server for Gateway/Endnode application.
+      required: true
+      type: string
+      enum: [ "JP", "US", "SG", "CN3", "jp", "us", "sg", "cn3" ]
+  post:
+    displayName: Obtain token to access the Gateway
+    description: |
+      Gateway will provide local authentication.
+      This login endpoint receives the Basic auth and gateway password,
+      and will generate a token bounded to both values.
+      A random string is generated and gateway stores the basic auth header
+      and gateway password locally.
+      Flow is as follows:
+      1. App authenticates with login endpoint, gateway generates a token
+      2. App uses token as Bearer on the subsequent calls
+      3. On each call, gateway is able to validate and use password and
+         Basic auth. If either one fails, endpoint will return error
+    headers:
+      authorization:
+        description: |
+          basic authorization header.
+          i.e. base64 encoded value of clientID:clientSecret (clientID is appID of
+          Gateway/Endnode app and clientSecret is appKey of Gateway/Endnode app)
+        required: true
+        type: string
+    body:
+      schema: UserInfo
+    responses:
+      200:
+        description: Access token
+        body:
+          schema: AccessToken
+      400:
+        description: |
+          errorCode:
+          `INVALID_INPUT_DATA`
+          message:
+          ``Missing authorization header``
+        body:
+          schema: Error
+      401:
+        description: |
+          errorCode:
+          `INVALID_GRANT`
+
+          message (if username or password invalid):
+          `Can't authenticate with the given username and password`
+
+          message (if basic token is invalid):
+          `Can't authorize action with the given access token`
+        body:
+          schema: Error
+
+/gateway-info:
+  get:
+    displayName: Obtain gateway hardware information.
+    description: |
+      When the end user replaces the Gateway, Gateway App/ End Node App need
+      to obtain the new Gateway's vendorThingID through the local REST API.
+      Corresponding to the [flow Replace Gateway 4.](https://docs.google.com/document/d/1D26yTBnMPeNAWWyXm3Ll2ZelKb7y2wT-SYH2iYFLcaY/edit#heading=h.i8tzws9p1ola)
+    headers:
+      authorization:
+        description: bearer {token published by the gateway}
+        required: true
+        type: string
+    responses:
+      200:
+        description: Gateway hardware information.
+        body:
+          schema: GatewayInfo
+      401:
+        description: |
+          errorCode:
+          `INVALID_GRANT`
+          message:
+          `Can't authorize action with the given access token`
+        body:
+          schema: Error
+/gateway-app/gateway/onboarding:
+  post:
+    displayName: Gateway onboarding for the Gateway App.
+    description: |
+      Let Gateway to onboard with the Gateway app.
+      Thing instance for the Gateway App is created or just retrieve token
+      and thingID if it's already registered.
+      Corresponding to the [flow 2](https://docs.google.com/document/d/1D26yTBnMPeNAWWyXm3Ll2ZelKb7y2wT-SYH2iYFLcaY/edit#)
+    headers:
+      authorization:
+        description: bearer {token published by the gateway}
+        required: true
+        type: string
+    responses:
+      200:
+        description: |
+          thingID of the Gateway.
+          Gateway Mobile App or End Node Mobile App will use it for onboarding
+          with the owner of the Gateway.
+        body:
+          schema: OnboardingResponse
+      400:
+        description: |
+          errorCode:
+          `INVALID_INPUT_DATA`
+          message:
+          `Missing authorization header`
+        body:
+          schema: Error
+      401:
+        description: |
+          errorCode:
+          `INVALID_GRANT`
+          message:
+          `Can't authorize action with the given access token`
+
+          errorCode:
+          `FAILED_TO_AUTHENTICATE_GATEWAY`
+          message:
+          `The password configured in gateway and actual password are different. Please re-configure the password.`
+        body:
+          schema: Error
+      403:
+        description: |
+          errorCode:
+          `FORBIDDEN`
+          message:
+          `Unsupported authorization header. Supported auth-scheme is Bearer.`
+        body:
+          schema: Error
+      409:
+        description: |
+          errorCode:
+          `INVALID_STATE`
+          message:
+          `Can't perform this action when the gateway state is ONBOARDING. Please retry.`
+        body:
+          schema: Error
+      500:
+        description: |
+          errorCode:
+          `INTERNAL_ERRROR`
+          message is depends on error.
+        body:
+          schema: Error
+      503:
+        description: |
+          errorCode:
+          `RESTORING_GATEWAY`
+          message:
+          `Can't perform this action in restore mode. Please wait until restore completion.`
+        body:
+          schema: Error
+/{serverLocation}/apps/{appID}/gateway/onboarding/:
+  uriParameters:
+    appID:
+      description: ID of the application
+      required: true
+      type: string
+    serverLocation:
+      description: Server location
+      required: true
+      type: string
+      enum: [ "JP", "US", "SG", "CN3", "jp", "us", "sg", "cn3" ]
+  post:
+    displayName: Gateway onboarding for the End Node App
+    description: |
+      Let Gateway to onboard with the specified End Node app.
+      Thing instance for the Gateway is created for the app or just retrieve
+      thingID if it's already registered.
+      Corresponding to the [flow 2](https://docs.google.com/document/d/1D26yTBnMPeNAWWyXm3Ll2ZelKb7y2wT-SYH2iYFLcaY/edit#)
+    headers:
+      authorization:
+        description: bearer {token published by the gateway}
+        required: true
+        type: string
+    responses:
+      200:
+        description: |
+          thingID of the Gateway.
+          Gateway Mobile App or End Node Mobile App will use it for onboarding
+          with the owner of the Gateway.
+        body:
+          schema: OnboardingResponse
+      400:
+        description: |
+          errorCode:
+          `INVALID_INPUT_DATA`
+          message:
+          `Missing authorization header`
+        body:
+          schema: Error
+      401:
+        description: |
+          errorCode:
+          `INVALID_GRANT`
+          message:
+          `Can't authorize action with the given access token`
+
+          errorCode:
+          `FAILED_TO_AUTHENTICATE_GATEWAY`
+          message:
+          `The password configured in gateway and actual password are different. Please re-configure the password.`
+        body:
+          schema: Error
+      403:
+        description: |
+          errorCode:
+          `FORBIDDEN`
+          message:
+          `Unsupported authorization header. Supported auth-scheme is Bearer.`
+        body:
+          schema: Error
+      409:
+        description: |
+          errorCode:
+          `INVALID_STATE`
+          message:
+          `Can't perform this action when the gateway state is ONBOARDING. Please retry.`
+        body:
+          schema: Error
+      500:
+        description: |
+          errorCode:
+          `INTERNAL_ERRROR`
+          message is depends on error.
+        body:
+          schema: Error
+      503:
+        description: |
+          errorCode:
+          `RESTORING_GATEWAY`
+          message:
+          `Can't perform this action in restore mode. Please wait until restore completion.`
+        body:
+          schema: Error
+/{serverLocation}/apps/{appID}/gateway/id:
+  uriParameters:
+    appID:
+      description: ID of the application
+      required: true
+      type: string
+    serverLocation:
+      description: Server location
+      required: true
+      type: string
+      enum: [ "JP", "US", "SG", "CN3", "jp", "us", "sg", "cn3" ]
+  get:
+    displayName: Get Gateway ID for the app
+    description: |
+      Get the Gateway ID for the App.
+      Corresponding to the [flow 3,4](https://docs.google.com/document/d/1D26yTBnMPeNAWWyXm3Ll2ZelKb7y2wT-SYH2iYFLcaY/edit#)
+    headers:
+      authorization:
+        description: bearer {token published by the gateway}
+        required: true
+        type: string
+    responses:
+      200:
+        description: |
+          thingID of the Gateway.
+          "my gateway" will use it for onboarding with the owner of the
+          Gateway.
+        body:
+          schema: ThingID
+      400:
+        description: |
+          errorCode:
+          `INVALID_INPUT_DATA`
+          message:
+          `Missing authorization header`
+        body:
+          schema: Error
+      401:
+        description: |
+          errorCode:
+          `INVALID_GRANT`
+          message:
+          `Can't authorize action with the given access token`
+        body:
+          schema: Error
+      403:
+        description: |
+          errorCode:
+          `FORBIDDEN`
+          message:
+          `Unsupported authorization header. Supported auth-scheme is Bearer.`
+        body:
+          schema: Error
+      404:
+        description: |
+          errorCode:
+          `GATEWAY_NOT_FOUND`
+          message:
+          `Gateway not found in the specified app. Please execute onboard for the app.`
+        body:
+          schema: Error
+      409:
+        description: |
+          errorCode:
+          `GATEWAY_APP_NOT_READY`
+          message:
+          `Can't perform this action when the gateway in gateway app is not onboarded`
+
+          errorCode:
+          `INVALID_STATE`
+          message:
+          `Gateway ID has not been assigned yet. Pleae wait for onboard completion.`
+
+        body:
+          schema: Error
+      500:
+        description: |
+          errorCode:
+          `INTERNAL_ERRROR`
+          message is depends on error.
+        body:
+          schema: Error
+      503:
+        description: |
+          errorCode:
+          `RESTORING_GATEWAY`
+          message:
+          `Can't perform this action in restore mode. Please wait until restore completion.`
+        body:
+          schema: Error
+/{serverLocation}/apps/{appID}/gateway/end-nodes/pending:
+  uriParameters:
+    appID:
+      description: ID of the application
+      required: true
+      type: string
+    serverLocation:
+      description: Server location
+      required: true
+      type: string
+      enum: [ "JP", "US", "SG", "CN3", "jp", "us", "sg", "cn3" ]
+  get:
+    displayName: List Connected End Nodes which has not been onboarded
+    description: |
+      List the Connected End Nodes which hasn't been onboarded to thing-if.
+      Corresponding to the [flow 12](https://docs.google.com/document/d/1D26yTBnMPeNAWWyXm3Ll2ZelKb7y2wT-SYH2iYFLcaY/edit#)
+      Gateway Agent has a fixed length Queue which manages list of the End
+      Nodes which has not been onboarded. the limit is 5.
+    headers:
+      authorization:
+        description: bearer {token published by the gateway}
+        required: true
+        type: string
+    responses:
+      200:
+        description: |
+          If there's no end-nodes which haven't onboarded yet,
+          object with empty array for "results" key (i.e. {"resutls":[]}) is returned.
+        body:
+          schema: |
+            {
+                "": "http://json-schema.org/draft-03/schema",
+                "type": "object",
+                "properties": {
+                  "results": [
+                    {
+                      "properties": {
+                        "vendorThingID": {
+                          "type": "string",
+                          "required": true
+                        },
+                        "thingProperties": {
+                          "type": "object",
+                          "required": false
+                        },
+                        "states": {
+                          "type": "object",
+                          "required": false
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ],
+                  "type": "array"
+                }
+            }
+          example: |
+            {
+              "results":[
+                {
+                  "vendorThingID": "vid1",
+                  "thingProperties": {
+                      "_thingType":"LED",
+                      "_vendor": "Kii",
+                      "_lot": "S2001512081200G0012340001",
+                      "_firmware_version": "1.0.0"
+                  }
+                },
+                {
+                  "vendorThingID": "vid2",
+                  "thingProperties": {
+                      "_thingType":"LED",
+                      "_vendor": "Kii",
+                      "_lot": "S2001512081200G0012340002",
+                      "_firmware_version": "1.0.0"
+                  }
+                },
+              ]
+            }
+
+      400:
+        description: |
+          errorCode:
+          `INVALID_INPUT_DATA`
+          message:
+          `Missing authorization header`
+        body:
+          schema: Error
+      401:
+        description: |
+          errorCode:
+          `INVALID_GRANT`
+          message:
+          `Can't authorize action with the given access token`
+        body:
+          schema: Error
+      403:
+        description: |
+          errorCode:
+          `FORBIDDEN`
+          message:
+          `Unsupported authorization header. Supported auth-scheme is Bearer.`
+        body:
+          schema: Error
+      404:
+        description: |
+          errorCode:
+          `GATEWAY_NOT_FOUND`
+          message:
+          `Gateway not found in the specified app. Please execute onboard for the app.`
+        body:
+          schema: Error
+      409:
+        description: |
+          errorCode:
+          `GATEWAY_APP_NOT_READY`
+          message:
+          `Can't perform this action when the gateway in gateway app is not onboarded`
+
+          errorCode:
+          `INVALID_STATE`
+          message:
+          `Gateway ID has not been assigned yet. Pleae wait for onboard completion.`
+        body:
+          schema: Error
+      500:
+        description: |
+          errorCode:
+          `INTERNAL_ERRROR`
+          message is depends on error.
+        body:
+          schema: Error
+      503:
+        description: |
+          errorCode:
+          `RESTORING_GATEWAY`
+          message:
+          `Can't perform this action in restore mode. Please wait until restore completion.`
+        body:
+          schema: Error
+/{serverLocation}/apps/{appID}/gateway/end-nodes/VENDOR_THING_ID:{vendorThingID}:
+  uriParameters:
+    serverLocation:
+      description: Server location
+      required: true
+      type: string
+      enum: [ "JP", "US", "SG", "CN3", "jp", "us", "sg", "cn3" ]
+    appID:
+      description: |
+        ID of the application of which the Gateway and End Node belongs
+      required: true
+      type: string
+    vendorThingID:
+      description: ID of the End Node of which onboard has been done.
+      required: true
+      type: string
+  put:
+    displayName: Notify End Node onboarding completion to the Gateway.
+    description: |
+      End Nodes Mobile App execute the onboarding for the End Node.
+      When onboarding is succeeded, feed Gateway with the thing ID of
+      the End Node.
+      Corresponding to the [flow 14](https://docs.google.com/document/d/1D26yTBnMPeNAWWyXm3Ll2ZelKb7y2wT-SYH2iYFLcaY/edit#).
+    headers:
+      authorization:
+        description: bearer {token published by the gateway}
+        required: true
+        type: string
+    body:
+      schema: RequestThingID
+    responses:
+      204:
+        description: Success
+      400:
+        description: |
+          errorCode:
+          `INVALID_INPUT_DATA`
+
+          message (if no authorization header provided):
+          `Missing authorization header`
+
+          message (if request body is invalid format or thingID is miss):
+          `Request body is invalid`
+
+        body:
+          schema: Error
+      401:
+        description: |
+          errorCode:
+          `INVALID_GRANT`
+          message:
+          `Can't authorize action with the given access token`
+        body:
+          schema: Error
+      403:
+        description: |
+          errorCode:
+          `FORBIDDEN`
+          message:
+          `Unsupported authorization header. Supported auth-scheme is Bearer.`
+        body:
+          schema: Error
+      404:
+        description: |
+          errorCode:
+          `GATEWAY_NOT_FOUND`
+          message:
+          `Gateway not found in the specified app. Please execute onboard for the app.`
+
+          errorCode:
+          `END_NODE_NOT_FOUND`
+          message:
+          `Specified end node not found`
+        body:
+          schema: Error
+      409:
+        description: |
+          errorCode:
+          `GATEWAY_APP_NOT_READY`
+          message:
+          `Can't perform this action when the gateway in gateway app is not onboarded`
+
+          errorCode:
+          `INVALID_STATE`
+          message:
+          `Gateway ID has not been assigned yet. Pleae wait for onboard completion.`
+        body:
+          schema: Error
+      500:
+        description: |
+          errorCode:
+          `INTERNAL_ERRROR`
+          message is depends on error.
+        body:
+          schema: Error
+      503:
+        description: |
+          errorCode:
+          `RESTORING_GATEWAY`
+          message:
+          `Can't perform this action in restore mode. Please wait until restore completion.`
+        body:
+          schema: Error
+/gateway-app/gateway/restore:
+  post:
+    displayName: Restore Gateway app
+    description: |
+       When the gateway is replaced with new one, Gateway Mobile App will do
+       the necessary procedure for replacement. After its ready for replacement,
+       Gateway Mobile App will notify that it's ready for restore.
+       Corresponding to the [flow Replace gateway 5.](https://docs.google.com/document/d/1D26yTBnMPeNAWWyXm3Ll2ZelKb7y2wT-SYH2iYFLcaY/edit#)
+    headers:
+      authorization:
+        description: bearer {token published by the gateway}
+        required: true
+        type: string
+    responses:
+      204:
+        description: |
+          Gateway Agent returns response when the restore has been started.
+          It does not wait for actual completion of restore.
+      400:
+        description: |
+          errorCode:
+          `INVALID_INPUT_DATA`
+          message:
+          `Missing authorization header`
+        body:
+          schema: Error
+      401:
+        description: |
+          errorCode:
+          `INVALID_GRANT`
+          message:
+          `Can't authorize action with the given access token`
+
+          errorCode:
+          `FAILED_TO_AUTHENTICATE_GATEWAY`
+          message:
+          `The password configured in gateway and actual password are different. Please re-configure the password.`
+        body:
+          schema: Error
+      403:
+        description: |
+          errorCode:
+          `FORBIDDEN`
+          message:
+          `Unsupported authorization header. Supported auth-scheme is Bearer.`
+        body:
+          schema: Error
+      409:
+        description: |
+          errorCode:
+          `INVALID_STATE`
+          message:
+          `Can't restore gateway in normal mode. Please reboot gateway in resotore mode.`
+        body:
+          schema: Error
+      500:
+        description: |
+          errorCode:
+          `INTERNAL_ERRROR`
+          message is depends on error.
+        body:
+          schema: Error
+/{serverLocation}/apps/{appID}/gateway/end-nodes/THING_ID:{thingID}:
+  uriParameters:
+    serverLocation:
+      description: Server location
+      required: true
+      type: string
+      enum: [ "JP", "US", "SG", "CN3", "jp", "us", "sg", "cn3" ]
+    appID:
+      description: |
+        ID of the application of which the Gateway and End Node belongs.
+      required: true
+      type: string
+    thingID:
+      description: ID of the End Node.
+      required: true
+      type: string
+  put:
+    displayName: Replace End-node
+    description: |
+      Replace end-node by new vendorThingID for end node thingID
+
+      Corresponding to the [Step 4 of Replace end node](https://docs.google.com/document/d/1D26yTBnMPeNAWWyXm3Ll2ZelKb7y2wT-SYH2iYFLcaY/edit#heading=h.cqecdkv0xxrk)
+    headers:
+      authorization:
+        description: bearer {token published by the gateway}
+        required: true
+        type: string
+    body:
+      schema: VendorThingID
+    responses:
+      204:
+        description: Success
+      400:
+        description: |
+          errorCode:
+          `INVALID_INPUT_DATA`
+
+          message (if no authorization header provided):
+          `Missing authorization header`
+
+          message (if request body is invalid format or vendorThingID is miss):
+          `Request body is invalid`
+
+        body:
+          schema: Error
+      401:
+        description: |
+          errorCode:
+          `INVALID_GRANT`
+          message:
+          `Can't authorize action with the given access token`
+        body:
+          schema: Error
+      403:
+        description: |
+          errorCode:
+          `FORBIDDEN`
+          message:
+          `Unsupported authorization header. Supported auth-scheme is Bearer.`
+        body:
+          schema: Error
+      404:
+        description: |
+          errorCode:
+          `GATEWAY_NOT_FOUND`
+          message:
+          `Gateway not found in the specified app. Please execute onboard for the app.`
+
+          errorCode:
+          `END_NODE_NOT_FOUND`
+          message:
+          `Specified end node not found`
+        body:
+          schema: Error
+      409:
+        description: |
+          errorCode:
+          `GATEWAY_APP_NOT_READY`
+          message:
+          `Can't perform this action when the gateway in gateway app is not onboarded`
+
+          errorCode:
+          `INVALID_STATE`
+          message:
+          `Gateway ID has not been assigned yet. Pleae wait for onboard completion.`
+        body:
+          schema: Error
+      500:
+        description: |
+          errorCode:
+          `INTERNAL_ERRROR`
+          message is depends on error.
+        body:
+          schema: Error
+      503:
+        description: |
+          errorCode:
+          `RESTORING_GATEWAY`
+          message:
+          `Can't perform this action in restore mode. Please wait until restore completion.`
+        body:
+          schema: Error
+
+/{serverLocation}/apps/{appID}/gateway/end-nodes/onboarded:
+  uriParameters:
+    appID:
+      description: ID of the application
+      required: true
+      type: string
+    serverLocation:
+      description: Server location
+      required: true
+      type: string
+      enum: [ "JP", "US", "SG", "CN3", "jp", "us", "sg", "cn3" ]
+  get:
+    displayName: List Connected End Nodes which has been onboarded
+    description: |
+      List the Connected End Nodes which has been onboarded to thing-if.
+    headers:
+      authorization:
+        description: bearer {token published by the gateway}
+        required: true
+        type: string
+    responses:
+      200:
+        description: |
+          If there's no end-nodes which haven't onboarded yet,
+          object with empty array for "results" key (i.e. {"resutls":[]}) is returned.
+        body:
+          schema: |
+            {
+                "": "http://json-schema.org/draft-03/schema",
+                "type": "object",
+                "properties": {
+                  "results": [
+                    {
+                      "properties": {
+                        "thingID": {
+                          "type": "string",
+                          "required": true
+                        },
+                        "vendorThingID": {
+                          "type": "string",
+                          "required": true
+                        },
+                        "thingProperties": {
+                          "type": "object",
+                          "required": false
+                        },
+                        "states": {
+                          "type": "object",
+                          "required": false
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ],
+                  "type": "array"
+                }
+            }
+          example: |
+            {
+              "results":[
+                {
+                  "thingID": "th.id1",
+                  "vendorThingID": "vid1",
+                  "thingProperties": {
+                      "_thingType":"LED",
+                      "_vendor": "Kii",
+                      "_lot": "S2001512081200G0012340001",
+                      "_firmware_version": "1.0.0"
+                  }
+                },
+                {
+                  "thingID": "th.id2",
+                  "vendorThingID": "vid2",
+                  "thingProperties": {
+                      "_thingType":"LED",
+                      "_vendor": "Kii",
+                      "_lot": "S2001512081200G0012340002",
+                      "_firmware_version": "1.0.0"
+                  }
+                },
+              ]
+            }
+
+      400:
+        description: |
+          errorCode:
+          `INVALID_INPUT_DATA`
+          message:
+          `Missing authorization header`
+        body:
+          schema: Error
+      401:
+        description: |
+          errorCode:
+          `INVALID_GRANT`
+          message:
+          `Can't authorize action with the given access token`
+        body:
+          schema: Error
+      403:
+        description: |
+          errorCode:
+          `FORBIDDEN`
+          message:
+          `Unsupported authorization header. Supported auth-scheme is Bearer.`
+        body:
+          schema: Error
+      404:
+        description: |
+          errorCode:
+          `GATEWAY_NOT_FOUND`
+          message:
+          `Gateway not found in the specified app. Please execute onboard for the app.`
+        body:
+          schema: Error
+      409:
+        description: |
+          errorCode:
+          `GATEWAY_APP_NOT_READY`
+          message:
+          `Can't perform this action when the gateway in gateway app is not onboarded`
+
+          errorCode:
+          `INVALID_STATE`
+          message:
+          `Gateway ID has not been assigned yet. Pleae wait for onboard completion.`
+        body:
+          schema: Error
+      500:
+        description: |
+          errorCode:
+          `INTERNAL_ERRROR`
+          message is depends on error.
+        body:
+          schema: Error
+      503:
+        description: |
+          errorCode:
+          `RESTORING_GATEWAY`
+          message:
+          `Can't perform this action in restore mode. Please wait until restore completion.`
+        body:
+          schema: Error

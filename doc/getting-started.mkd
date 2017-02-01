@@ -34,12 +34,7 @@ go build
 ## Setup
 
 ### Gateway configuration.
-```
-cd $GOPATH/src/github.com/KiiPlatform/gateway-agent
-cp doc/config.yml .
-```
-
-Edit copied config.yml
+Edit config.yml included in the release archive.
 
 `gateway` section:
 
@@ -137,7 +132,7 @@ Now, all configuration should have been done!
 ## Startup Gateway Agent
 
 ```shell
-cd $GOPATH/src/github.com/KiiPlatform/gateway-agent
+cd {PATH TO YOUR ENVIRONMENT}
 ./gwagent
 ```
 

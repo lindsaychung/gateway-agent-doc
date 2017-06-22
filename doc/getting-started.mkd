@@ -1,6 +1,6 @@
 # Getting Started With Kii Gateway
 
-This tutrial irrustrtes how Kii Gateway works with the Converter program and Gateway manager Application.
+This tutrial illustrates how Kii Gateway works with the Converter program and Gateway manager Application.
 
 - Gateway Converter Sample:
 https://github.com/KiiPlatform/gwc-cli
